@@ -74,7 +74,7 @@ static const char *sSDKsample = "CUDA Bandwidth Test";
 #define SHMOO_LIMIT_16MB (16 * 1e6)         // 16 MB
 #define SHMOO_LIMIT_32MB (32 * 1e6)         // 32 MB
 
-#define IS_COPYKERNEL 0
+#define IS_COPYKERNEL 1
 #define COPY_SIZE 1
 
 __global__ void copyKernel(unsigned char *dst, const unsigned char *src, int count)
