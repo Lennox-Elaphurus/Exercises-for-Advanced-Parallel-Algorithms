@@ -74,8 +74,8 @@ static const char *sSDKsample = "CUDA Bandwidth Test";
 #define SHMOO_LIMIT_16MB (16 * 1e6)         // 16 MB
 #define SHMOO_LIMIT_32MB (32 * 1e6)         // 32 MB
 
-#define IS_COPYKERNEL 1
-#define COPY_SIZE 1
+#define IS_COPYKERNEL 1 // 0: original, 1: using copyKernel
+#define COPY_SIZE 1     // possible value: 1, 4, 8, 16
 
 __global__ void copyKernel(unsigned char *dst, const unsigned char *src, int count)
 {
@@ -120,7 +120,7 @@ cudaError_t copyKernelMain(unsigned char *dst, const unsigned char *src, int cou
   err = cudaGetLastError();
   if (err != cudaSuccess)
   {
-    fprintf(stderr, "Failed to launch vectorAdd kernel (error code %s)!\n",
+    fprintf(stderr, "Failed to launch copyKernel (error code %s)!\n",
             cudaGetErrorString(err));
     exit(EXIT_FAILURE);
   }
