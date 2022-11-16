@@ -17,6 +17,6 @@
 | 16        | 4                                               | 9.1                      | 7.8                      | 277                        | 100000000             |
 | 16        | 8                                               | 8.7                      | 7.6                      | 268.9                      | 100000000             |
 
-The result of D2D bandwidth is unstable. In this case, `copy size = 4, number of transfer instrunctions per thread = 2` obtained the best performance.
+The result of D2D bandwidth is unstable. In this case, `copy size = 8, number of transfer instrunctions per thread = 2` obtained the best performance.
 
 .
