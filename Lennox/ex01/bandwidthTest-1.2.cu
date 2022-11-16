@@ -53,7 +53,7 @@ static const char *sSDKsample = "CUDA Bandwidth Test";
 
 // defines, project
 #define MEMCOPY_ITERATIONS 100
-#define DEFAULT_SIZE (32 * (1e6))     // 32 M
+#define DEFAULT_SIZE (100 * (1e6))     // changed to 100 M as question required, original:32 M
 #define DEFAULT_INCREMENT (4 * (1e6)) // 4 M
 #define CACHE_CLEAR_SIZE (16 * (1e6)) // 16 M
 
@@ -74,30 +74,48 @@ static const char *sSDKsample = "CUDA Bandwidth Test";
 #define SHMOO_LIMIT_16MB (16 * 1e6)         // 16 MB
 #define SHMOO_LIMIT_32MB (32 * 1e6)         // 32 MB
 
-#define IS_COPYKERNEL 1
-#define COPY_SIZE 1
+#define IS_COPYKERNEL 1 // 0: original, 1: using copyKernel
+#define COPY_SIZE 16     // possible value: 1, 4, 8, 16
+
+/////////////////////////////////////////////////////////////////
+// Some utility code to define grid_stride_range
+// Normally this would be in a header but it's here
+// for didactic purposes. Uses
+#include "range.hpp"
+using namespace util::lang;
+
+template <typename T>
+using step_range = typename range_proxy<T>::step_range_proxy;
+
+template <typename T>
+__device__ step_range<T> grid_stride_range(T begin, T end) {
+  begin += blockDim.x * blockIdx.x + threadIdx.x;
+  return range(begin, end).step(gridDim.x * blockDim.x);
+}
 
 __global__ void copyKernel(unsigned char *dst, const unsigned char *src, int count)
 {
-  int i = blockDim.x * blockIdx.x + threadIdx.x;
+  // int idx = blockDim.x * blockIdx.x + threadIdx.x;
 
-  if (i < count)
+  switch (COPY_SIZE)
   {
-    switch (COPY_SIZE)
-    {
     case 4:
-      reinterpret_cast<int *>(dst)[i] = reinterpret_cast<const int *>(src)[i];
+      for (auto i : grid_stride_range(0, count/COPY_SIZE))
+        reinterpret_cast<int *>(dst)[i] = reinterpret_cast<const int *>(src)[i];
       break;
     case 8:
-      reinterpret_cast<int2 *>(dst)[i] = reinterpret_cast<const int2 *>(src)[i];
+      for (auto i : grid_stride_range(0, count/COPY_SIZE))
+        reinterpret_cast<int2 *>(dst)[i] = reinterpret_cast<const int2 *>(src)[i];
       break;
     case 16:
-      reinterpret_cast<int4 *>(dst)[i] = reinterpret_cast<const int4 *>(src)[i];
+      for (auto i : grid_stride_range(0, count/COPY_SIZE))
+        reinterpret_cast<int4 *>(dst)[i] = reinterpret_cast<const int4 *>(src)[i];
       break;
     default: // case 1
-      dst[i] = src[i];
-    }
+      for (auto i : grid_stride_range(0, count/COPY_SIZE))
+        dst[i] = src[i];
   }
+
 }
 
 /// @brief  It's the main function of copyKernel.
@@ -120,7 +138,7 @@ cudaError_t copyKernelMain(unsigned char *dst, const unsigned char *src, int cou
   err = cudaGetLastError();
   if (err != cudaSuccess)
   {
-    fprintf(stderr, "Failed to launch vectorAdd kernel (error code %s)!\n",
+    fprintf(stderr, "Failed to launch copyKernel (error code %s)!\n",
             cudaGetErrorString(err));
     exit(EXIT_FAILURE);
   }
