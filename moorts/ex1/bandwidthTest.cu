@@ -49,6 +49,8 @@
 #include <memory>
 #include <stdio.h>
 
+#include <type_traits>
+
 static const char *sSDKsample = "CUDA Bandwidth Test";
 
 // defines, project
@@ -75,8 +77,14 @@ static const char *sSDKsample = "CUDA Bandwidth Test";
 #define SHMOO_LIMIT_32MB (32 * 1e6)         // 32 MB
 
 #define IS_COPYKERNEL 1
-#define COPY_SIZE 4
-#define INSTR_PER_THREAD 4
+#define COPY_SIZE 8
+#define INSTR_PER_THREAD 2
+
+#include "cuda_fp16.h"
+
+typedef int DTYPE;
+
+const DTYPE scale = 1;
 
 /////////////////////////////////////////////////////////////////
 // Some utility code to define grid_stride_range
@@ -123,6 +131,60 @@ __global__ void copyKernel(unsigned char *dst, const unsigned char *src, int cou
       dst[i] = src[i];
     }
   }
+}
+
+template <typename TData>
+__global__ void copyKernelTemplate(TData *dst, TData *src, TData scale, int count) {
+    //int optimalSize = 8;
+
+    if(std::is_same<TData, int>::value) {
+        for(auto i : grid_stride_range(0, count/COPY_SIZE)) {
+          reinterpret_cast<int2 *>(dst)[i] = make_int2(src[i] * scale, src[i+1] * scale);
+        }
+    } else if(std::is_same<TData, float>::value) {
+        for(auto i : grid_stride_range(0, count/COPY_SIZE)) {
+          reinterpret_cast<float2 *>(dst)[i] = make_float2(src[i] * scale, src[i+1] * scale);
+        }
+    } else if(std::is_same<TData, half>::value) {
+        /* I dont even know
+        for(auto i : grid_stride_range(0, count/COPY_SIZE)) {
+          reinterpret_cast<half2 *>(dst)[i] = make_half2(__hmul(src[i], scale), __hmul(src[i+1], scale));
+          reinterpret_cast<half2 *>(dst)[i + 1] = make_half2(__hmul(src[i + 2], scale), __hmul(src[i+3], scale));
+        }
+        */
+    } else {
+        for(auto i : grid_stride_range(0, count/COPY_SIZE)) {
+          dst[i] = src[i] * scale;
+        }
+
+    }
+}
+
+//template <> __global__ void copyKernelTemplate<half>
+
+template <typename TData>
+cudaError_t copyKernelTemplateMain(TData *dst, TData *src, TData scale, int count, int instructionsPerThread) {
+  // Error code to check return values for CUDA calls
+  cudaError_t err = cudaSuccess;
+
+  // Launch the Vector Add CUDA Kernel
+  int threadsPerBlock = 256;
+  int blocksPerGrid = (count / (COPY_SIZE * instructionsPerThread) + threadsPerBlock - 1) / (threadsPerBlock);
+  // printf("CUDA kernel launch with %d blocks of %d threads\n", blocksPerGrid,
+  //  threadsPerBlock);
+  copyKernelTemplate<TData>
+      <<<blocksPerGrid, threadsPerBlock>>>(dst, src, scale, count);
+  err = cudaGetLastError();
+  if (err != cudaSuccess)
+  {
+    fprintf(stderr, "Failed to launch vectorAdd kernel (error code %s)!\n",
+            cudaGetErrorString(err));
+    exit(EXIT_FAILURE);
+  }
+  checkCudaErrors(cudaDeviceSynchronize());
+
+  return err;
+
 }
 
 /// @brief  It's the main function of copyKernel.
@@ -769,8 +831,8 @@ float testDeviceToHostTransfer(unsigned int memSize, memoryMode memMode,
   StopWatchInterface *timer = NULL;
   float elapsedTimeInMs = 0.0f;
   float bandwidthInGBs = 0.0f;
-  unsigned char *h_idata = NULL;
-  unsigned char *h_odata = NULL;
+  DTYPE *h_idata = NULL;
+  DTYPE *h_odata = NULL;
   cudaEvent_t start, stop;
 
   sdkCreateTimer(&timer);
@@ -794,8 +856,8 @@ float testDeviceToHostTransfer(unsigned int memSize, memoryMode memMode,
   else
   {
     // pageable memory mode - use malloc
-    h_idata = (unsigned char *)malloc(memSize);
-    h_odata = (unsigned char *)malloc(memSize);
+    h_idata = (DTYPE *)malloc(memSize);
+    h_odata = (DTYPE *)malloc(memSize);
 
     if (h_idata == 0 || h_odata == 0)
     {
@@ -805,13 +867,13 @@ float testDeviceToHostTransfer(unsigned int memSize, memoryMode memMode,
   }
 
   // initialize the memory
-  for (unsigned int i = 0; i < memSize / sizeof(unsigned char); i++)
+  for (unsigned int i = 0; i < memSize / sizeof(DTYPE); i++)
   {
-    h_idata[i] = (unsigned char)(i & 0xff);
+    h_idata[i] = (DTYPE)(i & 0xff);
   }
 
   // allocate device memory
-  unsigned char *d_idata;
+  DTYPE *d_idata;
   checkCudaErrors(cudaMalloc((void **)&d_idata, memSize));
 
   // initialize the device memory
@@ -829,7 +891,7 @@ float testDeviceToHostTransfer(unsigned int memSize, memoryMode memMode,
         checkCudaErrors(cudaMemcpyAsync(h_odata, d_idata, memSize,
                                         cudaMemcpyDeviceToHost, 0));
       else
-        checkCudaErrors(copyKernelMain(h_odata, d_idata, memSize, INSTR_PER_THREAD));
+        checkCudaErrors(copyKernelTemplateMain<DTYPE>(h_odata, d_idata, scale, memSize, INSTR_PER_THREAD));
     }
     checkCudaErrors(cudaEventRecord(stop, 0));
     checkCudaErrors(cudaDeviceSynchronize());
@@ -852,7 +914,7 @@ float testDeviceToHostTransfer(unsigned int memSize, memoryMode memMode,
             cudaMemcpy(h_odata, d_idata, memSize, cudaMemcpyDeviceToHost));
       else
         checkCudaErrors(
-            copyKernelMain(h_odata, d_idata, memSize, INSTR_PER_THREAD));
+            copyKernelTemplateMain<DTYPE>(h_odata, d_idata, scale, memSize, INSTR_PER_THREAD));
       sdkStopTimer(&timer);
       elapsedTimeInMs += sdkGetTimerValue(&timer);
       sdkResetTimer(&timer);
@@ -900,7 +962,7 @@ float testHostToDeviceTransfer(unsigned int memSize, memoryMode memMode,
   checkCudaErrors(cudaEventCreate(&stop));
 
   // allocate host memory
-  unsigned char *h_odata = NULL;
+  DTYPE *h_odata = NULL;
 
   if (PINNED == memMode)
   {
@@ -916,7 +978,7 @@ float testHostToDeviceTransfer(unsigned int memSize, memoryMode memMode,
   else
   {
     // pageable memory mode - use malloc
-    h_odata = (unsigned char *)malloc(memSize);
+    h_odata = (DTYPE *)malloc(memSize);
 
     if (h_odata == 0)
     {
@@ -925,8 +987,8 @@ float testHostToDeviceTransfer(unsigned int memSize, memoryMode memMode,
     }
   }
 
-  unsigned char *h_cacheClear1 = (unsigned char *)malloc(CACHE_CLEAR_SIZE);
-  unsigned char *h_cacheClear2 = (unsigned char *)malloc(CACHE_CLEAR_SIZE);
+  DTYPE *h_cacheClear1 = (DTYPE *)malloc(CACHE_CLEAR_SIZE);
+  DTYPE *h_cacheClear2 = (DTYPE *)malloc(CACHE_CLEAR_SIZE);
 
   if (h_cacheClear1 == 0 || h_cacheClear2 == 0)
   {
@@ -935,19 +997,19 @@ float testHostToDeviceTransfer(unsigned int memSize, memoryMode memMode,
   }
 
   // initialize the memory
-  for (unsigned int i = 0; i < memSize / sizeof(unsigned char); i++)
+  for (unsigned int i = 0; i < memSize / sizeof(DTYPE); i++)
   {
-    h_odata[i] = (unsigned char)(i & 0xff);
+    h_odata[i] = (DTYPE)(i & 0xff);
   }
 
-  for (unsigned int i = 0; i < CACHE_CLEAR_SIZE / sizeof(unsigned char); i++)
+  for (unsigned int i = 0; i < CACHE_CLEAR_SIZE / sizeof(DTYPE); i++)
   {
-    h_cacheClear1[i] = (unsigned char)(i & 0xff);
-    h_cacheClear2[i] = (unsigned char)(0xff - (i & 0xff));
+    h_cacheClear1[i] = (DTYPE)(i & 0xff);
+    h_cacheClear2[i] = (DTYPE)(0xff - (i & 0xff));
   }
 
   // allocate device memory
-  unsigned char *d_idata;
+  DTYPE *d_idata;
   checkCudaErrors(cudaMalloc((void **)&d_idata, memSize));
 
   // copy host memory to device memory
@@ -963,7 +1025,7 @@ float testHostToDeviceTransfer(unsigned int memSize, memoryMode memMode,
         checkCudaErrors(cudaMemcpyAsync(d_idata, h_odata, memSize,
                                         cudaMemcpyHostToDevice, 0));
       else
-        checkCudaErrors(copyKernelMain(d_idata, h_odata, memSize, INSTR_PER_THREAD));
+        checkCudaErrors(copyKernelTemplateMain<DTYPE>(d_idata, h_odata, scale, memSize, INSTR_PER_THREAD));
     }
     checkCudaErrors(cudaEventRecord(stop, 0));
     checkCudaErrors(cudaDeviceSynchronize());
@@ -987,7 +1049,7 @@ float testHostToDeviceTransfer(unsigned int memSize, memoryMode memMode,
             cudaMemcpy(d_idata, h_odata, memSize, cudaMemcpyHostToDevice));
       else
         checkCudaErrors(
-            copyKernelMain(d_idata, h_odata, memSize, INSTR_PER_THREAD));
+            copyKernelTemplateMain<DTYPE>(d_idata, h_odata, scale, memSize, INSTR_PER_THREAD));
       sdkStopTimer(&timer);
       elapsedTimeInMs += sdkGetTimerValue(&timer);
       sdkResetTimer(&timer);
@@ -1035,7 +1097,7 @@ float testDeviceToDeviceTransfer(unsigned int memSize)
   checkCudaErrors(cudaEventCreate(&stop));
 
   // allocate host memory
-  unsigned char *h_idata = (unsigned char *)malloc(memSize);
+  DTYPE *h_idata = (DTYPE *)malloc(memSize);
 
   if (h_idata == 0)
   {
@@ -1044,15 +1106,15 @@ float testDeviceToDeviceTransfer(unsigned int memSize)
   }
 
   // initialize the host memory
-  for (unsigned int i = 0; i < memSize / sizeof(unsigned char); i++)
+  for (unsigned int i = 0; i < memSize / sizeof(DTYPE); i++)
   {
-    h_idata[i] = (unsigned char)(i & 0xff);
+    h_idata[i] = (DTYPE)(i & 0xff);
   }
 
   // allocate device memory
-  unsigned char *d_idata;
+  DTYPE *d_idata;
   checkCudaErrors(cudaMalloc((void **)&d_idata, memSize));
-  unsigned char *d_odata;
+  DTYPE *d_odata;
   checkCudaErrors(cudaMalloc((void **)&d_odata, memSize));
 
   // initialize memory
@@ -1069,7 +1131,7 @@ float testDeviceToDeviceTransfer(unsigned int memSize)
       checkCudaErrors(
           cudaMemcpy(d_odata, d_idata, memSize, cudaMemcpyDeviceToDevice));
     else
-      checkCudaErrors(copyKernelMain(d_odata, d_idata, memSize, INSTR_PER_THREAD));
+      checkCudaErrors(copyKernelTemplateMain<DTYPE>(d_odata, d_idata, scale, memSize, INSTR_PER_THREAD));
   }
 
   checkCudaErrors(cudaEventRecord(stop, 0));
