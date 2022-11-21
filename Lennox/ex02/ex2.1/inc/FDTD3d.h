@@ -51,4 +51,8 @@
 #define k_timesteps_max 10
 #define k_timesteps_default 5
 
+#define k_boundary_min 0.0f
+#define k_boundary_max 1.0f
+#define k_boundary_default 0.0f
+
 #endif

@@ -34,6 +34,7 @@
 
 #include "FDTD3dGPUKernel.cuh"
 
+#define GPU_PROFILING 1
 
 bool getTargetDeviceGlobalMemSize(memsize_t *result, const int argc,
                                   const char **argv) {

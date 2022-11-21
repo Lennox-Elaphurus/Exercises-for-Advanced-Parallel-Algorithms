@@ -49,17 +49,21 @@
 bool runTest(int argc, const char **argv);
 void showHelp(const int argc, const char **argv);
 
-int main(int argc, char **argv) {
+int main(int argc, char **argv)
+{
   bool bTestResult = false;
   // Start the log
   printf("%s Starting...\n\n", argv[0]);
 
   // Check help flag
-  if (checkCmdLineFlag(argc, (const char **)argv, "help")) {
+  if (checkCmdLineFlag(argc, (const char **)argv, "help"))
+  {
     printf("Displaying help on console\n");
     showHelp(argc, (const char **)argv);
     bTestResult = true;
-  } else {
+  }
+  else
+  {
     // Execute
     bTestResult = runTest(argc, (const char **)argv);
   }
@@ -68,10 +72,14 @@ int main(int argc, char **argv) {
   exit(bTestResult ? EXIT_SUCCESS : EXIT_FAILURE);
 }
 
-void showHelp(const int argc, const char **argv) {
-  if (argc > 0) std::cout << std::endl << argv[0] << std::endl;
+void showHelp(const int argc, const char **argv)
+{
+  if (argc > 0)
+    std::cout << std::endl
+              << argv[0] << std::endl;
 
-  std::cout << std::endl << "Syntax:" << std::endl;
+  std::cout << std::endl
+            << "Syntax:" << std::endl;
   std::cout << std::left;
   std::cout << "    " << std::setw(20) << "--device=<device>"
             << "Specify device to use for execution" << std::endl;
@@ -96,7 +104,8 @@ void showHelp(const int argc, const char **argv) {
   std::cout << std::endl;
 }
 
-bool runTest(int argc, const char **argv) {
+bool runTest(int argc, const char **argv)
+{
   float *host_output;
   float *device_output;
   float *input;
@@ -111,6 +120,7 @@ bool runTest(int argc, const char **argv) {
   int outerDimz;
   int radius;
   int timesteps;
+  float boundary;
   size_t volumeSize;
   memsize_t memsize;
 
@@ -140,18 +150,22 @@ bool runTest(int argc, const char **argv) {
   defaultDim -= k_radius_default * 2;
 
   // Check dimension is valid
-  if (defaultDim < k_dim_min) {
+  if (defaultDim < k_dim_min)
+  {
     printf(
         "insufficient device memory (maximum volume on device is %d, must be "
         "between %d and %d).\n",
         defaultDim, k_dim_min, k_dim_max);
     exit(EXIT_FAILURE);
-  } else if (defaultDim > k_dim_max) {
+  }
+  else if (defaultDim > k_dim_max)
+  {
     defaultDim = k_dim_max;
   }
 
   // For QA testing, override default volume size
-  if (checkCmdLineFlag(argc, argv, "qatest")) {
+  if (checkCmdLineFlag(argc, argv, "qatest"))
+  {
     defaultDim = MIN(defaultDim, k_dim_qa);
   }
 
@@ -161,34 +175,49 @@ bool runTest(int argc, const char **argv) {
   dimz = defaultDim;
   radius = k_radius_default;
   timesteps = k_timesteps_default;
+  boundary = k_boundary_default;
 
   // Parse command line arguments
-  if (checkCmdLineFlag(argc, argv, "dimx")) {
+  if (checkCmdLineFlag(argc, argv, "dimx"))
+  {
     dimx =
         CLAMP(getCmdLineArgumentInt(argc, argv, "dimx"), k_dim_min, k_dim_max);
   }
 
-  if (checkCmdLineFlag(argc, argv, "dimy")) {
+  if (checkCmdLineFlag(argc, argv, "dimy"))
+  {
     dimy =
         CLAMP(getCmdLineArgumentInt(argc, argv, "dimy"), k_dim_min, k_dim_max);
   }
 
-  if (checkCmdLineFlag(argc, argv, "dimz")) {
+  if (checkCmdLineFlag(argc, argv, "dimz"))
+  {
     dimz =
         CLAMP(getCmdLineArgumentInt(argc, argv, "dimz"), k_dim_min, k_dim_max);
   }
 
-  if (checkCmdLineFlag(argc, argv, "radius")) {
+  if (checkCmdLineFlag(argc, argv, "radius"))
+  {
     radius = CLAMP(getCmdLineArgumentInt(argc, argv, "radius"), k_radius_min,
                    k_radius_max);
   }
 
-  if (checkCmdLineFlag(argc, argv, "timesteps")) {
+  if (checkCmdLineFlag(argc, argv, "timesteps"))
+  {
     timesteps = CLAMP(getCmdLineArgumentInt(argc, argv, "timesteps"),
                       k_timesteps_min, k_timesteps_max);
   }
 
-  // Determine volume size
+  bool setBoundary = false;
+  // setting the boundary to an arbitrary float value
+  if (checkCmdLineFlag(argc, argv, "boundary"))
+  {
+    boundary = CLAMP(getCmdLineArgumentFloat(argc, argv, "boundary"),
+                     k_boundary_min, k_boundary_max);
+    setBoundary = true;
+  }
+
+  // Determine volume size (including halo)
   outerDimx = dimx + 2 * radius;
   outerDimy = dimy + 2 * radius;
   outerDimz = dimz + 2 * radius;
@@ -200,14 +229,35 @@ bool runTest(int argc, const char **argv) {
   coeff = (float *)malloc((radius + 1) * sizeof(float));
 
   // Create coefficients
-  for (int i = 0; i <= radius; i++) {
+  for (int i = 0; i <= radius; i++)
+  {
     coeff[i] = 0.1f;
   }
 
   // Generate data
   printf(" generateRandomData\n\n");
+
   generateRandomData(input, outerDimx, outerDimy, outerDimz, lowerBound,
-                     upperBound);
+                     upperBound); // here it generate the whole matix with halo in random
+
+  if (setBoundary == true) // set boundary as a float
+  {
+    float *data = input;
+    for (int iz = 0; iz < outerDimz; iz++)
+    {
+      for (int iy = 0; iy < outerDimy; iy++)
+      {
+        for (int ix = 0; ix < outerDimx; ix++)
+        {
+          if (ix >= dimx || iy >= dimy || iz >= dimz)
+          {
+            *data = boundary;
+          }
+          ++data;
+        }
+      }
+    }
+  }
   printf(
       "FDTD on %d x %d x %d volume with symmetric filter radius %d for %d "
       "timesteps...\n\n",
