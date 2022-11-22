@@ -32,9 +32,9 @@ namespace cg = cooperative_groups;
 
 // Note: If you change the RADIUS, you should also change the unrolling below
 #define RADIUS 4
-
 // __constant__ float stencil[RADIUS + 1];//original linear stencil
 __constant__ float stencil[2 * RADIUS + 1][2 * RADIUS + 1][2 * RADIUS + 1]; // cube kernel
+__constant__ float stencil2[2 * RADIUS + 1];                                // line kernel
 
 __global__ void FiniteDifferencesKernel(float *output, const float *input,
                                         const int dimx, const int dimy,
@@ -102,7 +102,7 @@ __global__ void FiniteDifferencesKernel(float *output, const float *input,
   }
 
 // Step through the xy-planes
-#pragma unroll(2 * RADIUS + 1)
+#pragma unroll 9
 
   for (int iz = 0; iz < dimz; iz++)
   {
@@ -112,7 +112,7 @@ __global__ void FiniteDifferencesKernel(float *output, const float *input,
 
     behind[0] = current;
     current = infront[0];
-#pragma unroll RADIUS
+#pragma unroll 4
 
     for (int i = 0; i < RADIUS - 1; i++)
       infront[i] = infront[i + 1];
@@ -150,19 +150,30 @@ __global__ void FiniteDifferencesKernel(float *output, const float *input,
     cg::sync(cta);
 
     // Compute the output value
-    float value = stencil[0] * current;
-#pragma unroll RADIUS
+    float value = stencil2[0] * current;
+#pragma unroll 4
 
     for (int i = 1; i <= RADIUS; i++)
     {
       value +=
-          stencil[i] * (infront[i - 1] + behind[i - 1] + tile[ty - i][tx] +
-                        tile[ty + i][tx] + tile[ty][tx - i] + tile[ty][tx + i]);
+          stencil2[i] * (infront[i - 1] + behind[i - 1] + tile[ty - i][tx] +
+                         tile[ty + i][tx] + tile[ty][tx - i] + tile[ty][tx + i]);
     }
 
     // Store the output value
     if (validw)
       output[outputIndex] = value;
+  }
+}
+
+__device__ void copyPlane(float (*dst)[k_blockDimX + 2 * RADIUS], const float (*src)[k_blockDimX + 2 * RADIUS])
+{
+  for (int idy = 0; idy < k_blockDimMaxY + 2 * RADIUS; ++idy)
+  {
+    for (int idx = 0; idx < k_blockDimX + 2 * RADIUS; ++idx)
+    {
+      dst[idy][idx] = src[idy][idx];
+    }
   }
 }
 
@@ -196,7 +207,7 @@ __global__ void FiniteDifferencesKernelCube(float *output, const float *input,
 
   __shared__ float infront[RADIUS][k_blockDimMaxY + 2 * RADIUS][k_blockDimX + 2 * RADIUS]; // changed to full plane size
   __shared__ float behind[RADIUS][k_blockDimMaxY + 2 * RADIUS][k_blockDimX + 2 * RADIUS];  // changed to full plane size
-  float current;
+  // float current;
 
   const int tx = ltidx + RADIUS; // tile x for x-y plane
   const int ty = ltidy + RADIUS;
@@ -282,23 +293,31 @@ __global__ void FiniteDifferencesKernelCube(float *output, const float *input,
   }
 
 // Step through the xy-planes
-#pragma unroll(2 * RADIUS + 1)
+#pragma unroll 9
 
   for (int iz = 0; iz < dimz; iz++)
   {
     // Advance the slice (move the thread-front)
     for (int i = RADIUS - 1; i > 0; i--)
-      behind[i] = behind[i - 1];
+      // behind[i] = behind[i - 1];
+      copyPlane(behind[i], behind[i - 1]);
 
-    behind[0] = tile;                     // behind[0] = current;
-    tile = infront[0];                    // current = infront[0];
-    current = infront[0][RADIUS][RADIUS]; // center of infront[0]
-                                          // we iterate from behind to infront
+    // behind[0] = tile;                     // behind[0] = current;
+    copyPlane(behind[0], tile);
 
-#pragma unroll RADIUS
+    // tile = infront[0];                    // current = infront[0];
+    copyPlane(tile, infront[0]);
+
+
+    // current = infront[0][RADIUS][RADIUS]; // center of infront[0]
+    
+    // we iterate from behind to infront
+#pragma unroll 4
 
     for (int i = 0; i < RADIUS - 1; i++)
-      infront[i] = infront[i + 1];
+      // infront[i] = infront[i + 1];
+      copyPlane(infront[i], infront[i + 1]);
+
 
     // Loading new infront
     if (validr)
@@ -360,7 +379,7 @@ __global__ void FiniteDifferencesKernelCube(float *output, const float *input,
     cg::sync(cta);
 
     float value = 0; // float value = stencil[0] * current;
-#pragma unroll RADIUS
+#pragma unroll 4
     /*
     for (int i = 1; i <= RADIUS; i++)
     {

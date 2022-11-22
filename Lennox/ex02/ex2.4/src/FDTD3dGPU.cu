@@ -171,7 +171,7 @@ bool fdtdGPU(float *output, const float *input, const float *coeff,
 
   // Copy the coefficients to the device coefficient buffer
   checkCudaErrors(
-      cudaMemcpyToSymbol(stencil, (void *)coeff, (radius + 1) * sizeof(float)));
+      cudaMemcpyToSymbol(stencil2, (void *)coeff, (radius + 1) * sizeof(float)));
 
 #ifdef GPU_PROFILING
 
