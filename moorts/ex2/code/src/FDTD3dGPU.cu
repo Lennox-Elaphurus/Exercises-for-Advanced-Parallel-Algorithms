@@ -274,12 +274,16 @@ bool fdtdGPU(float *output, const float *input, const float *coeff,
     double avgElapsedTime = elapsedTime / (double)profileTimesteps;
     // Determine number of computations per timestep
     size_t pointsComputed = dimx * dimy * dimz;
+    size_t flopsPerThread = dimz * (7 * radius + 1);
+    size_t flopsTotal = flopsPerThread * dimGrid.x * dimGrid.y * dimBlock.x * dimBlock.y;
+    //printf("FLOPSTOTAL: %zu\n", flopsTotal);
+    double flopsPerSec = 1.0e-9 * (double)flopsTotal / avgElapsedTime; 
     // Determine throughput
     double throughputM = 1.0e-6 * (double)pointsComputed / avgElapsedTime;
     printf(
-        "FDTD3d, Throughput = %.4f MPoints/s, Time = %.5f s, Size = %u Points, "
+        "FDTD3d, Throughput = %.4f MPoints/s, FLOPS = %.4f MFLOP/s, Time = %.5f s, Size = %u Points, "
         "NumDevsUsed = %u, Blocksize = %u\n",
-        throughputM, avgElapsedTime, pointsComputed, 1,
+        throughputM, flopsPerSec, avgElapsedTime, pointsComputed, 1,
         dimBlock.x * dimBlock.y);
   }
 
