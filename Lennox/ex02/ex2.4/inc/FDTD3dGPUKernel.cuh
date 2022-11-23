@@ -168,6 +168,7 @@ __global__ void FiniteDifferencesKernel(float *output, const float *input,
 
 __device__ void copyPlane(float (*dst)[k_blockDimX + 2 * RADIUS], const float (*src)[k_blockDimX + 2 * RADIUS])
 {
+  //dst and src are all in shared memory
   for (int idy = 0; idy < k_blockDimMaxY + 2 * RADIUS; ++idy)
   {
     for (int idx = 0; idx < k_blockDimX + 2 * RADIUS; ++idx)
@@ -175,6 +176,25 @@ __device__ void copyPlane(float (*dst)[k_blockDimX + 2 * RADIUS], const float (*
       dst[idy][idx] = src[idy][idx];
     }
   }
+
+  /*
+   if (validr)
+   {
+     // above & below
+     if (ltidy < RADIUS)
+     {
+       dst[ltidy][tx] = src[centerIndex - RADIUS * stride_y];
+       dst[ltidy + worky + RADIUS][tx] = src[centerIndex + worky * stride_y];
+     }
+
+     // left & right
+     if (ltidx < RADIUS)
+     {
+       dst[ty][ltidx] = src[centerIndex - RADIUS];
+       dst[ty][ltidx + workx + RADIUS] = src[centerIndex + workx];
+     }
+   }
+   */
 }
 
 __global__ void FiniteDifferencesKernelCube(float *output, const float *input,
@@ -201,9 +221,11 @@ __global__ void FiniteDifferencesKernelCube(float *output, const float *input,
 
   // Advance inputIndex to start of inner volume
   inputIndex += RADIUS * stride_y + RADIUS;
+  const int startIndex = inputIndex; // the start of block of this thread
 
   // Advance inputIndex to target element
   inputIndex += gtidy * stride_y + gtidx;
+  const int centerIndex = inputIndex; // the index of center element of thins thread
 
   __shared__ float infront[RADIUS][k_blockDimMaxY + 2 * RADIUS][k_blockDimX + 2 * RADIUS]; // changed to full plane size
   __shared__ float behind[RADIUS][k_blockDimMaxY + 2 * RADIUS][k_blockDimX + 2 * RADIUS];  // changed to full plane size
@@ -220,7 +242,7 @@ __global__ void FiniteDifferencesKernelCube(float *output, const float *input,
     validw = false;
 
   // Preload the "infront" and "behind" data
-  // input start with behind, and we iterate from behind to infront
+  // input start with behind, but we iterate from infront to behind
   // Loading behind, indexes of "behind" are from infront to behind
   for (int i = RADIUS - 2; i >= 0; i--) // why is here -2? Fixed for radius 4?
   {
@@ -231,17 +253,16 @@ __global__ void FiniteDifferencesKernelCube(float *output, const float *input,
       {
         for (int idx = 0; idx < k_blockDimX + 2 * RADIUS; ++idx)
         {
-          // behind[i][idy][idx] = input[inputIndex];
           // should import each plane of behind like tile
 
-          // Halo above & below
+          // above & below
           if (ltidy < RADIUS)
           {
             behind[i][ltidy][tx] = input[inputIndex - RADIUS * stride_y];
             behind[i][ltidy + worky + RADIUS][tx] = input[inputIndex + worky * stride_y];
           }
 
-          // Halo left & right
+          // left & right
           if (ltidx < RADIUS)
           {
             behind[i][ty][ltidx] = input[inputIndex - RADIUS];
@@ -252,10 +273,10 @@ __global__ void FiniteDifferencesKernelCube(float *output, const float *input,
     }
     inputIndex += stride_z;
   }
-  // cg::sync(cta); //can be added to makesure all data in behind are loaded
+  cg::sync(cta); // can be added to makesure all data in behind are loaded
 
-  if (validr)
-    current = input[inputIndex];
+  // if (validr)
+  //   current = input[inputIndex];
 
   outputIndex = inputIndex;
   inputIndex += stride_z;
@@ -272,14 +293,14 @@ __global__ void FiniteDifferencesKernelCube(float *output, const float *input,
         {
           // should import each plane of infront like tile
 
-          // Halo above & below
+          // above & below
           if (ltidy < RADIUS)
           {
             infront[i][ltidy][tx] = input[inputIndex - RADIUS * stride_y];
             infront[i][ltidy + worky + RADIUS][tx] = input[inputIndex + worky * stride_y];
           }
 
-          // Halo left & right
+          // left & right
           if (ltidx < RADIUS)
           {
             infront[i][ty][ltidx] = input[inputIndex - RADIUS];
@@ -291,7 +312,7 @@ __global__ void FiniteDifferencesKernelCube(float *output, const float *input,
 
     inputIndex += stride_z;
   }
-
+  cg::sync(cta); // can be added to makesure all data in behind are loaded
 // Step through the xy-planes
 #pragma unroll 9
 
@@ -299,8 +320,10 @@ __global__ void FiniteDifferencesKernelCube(float *output, const float *input,
   {
     // Advance the slice (move the thread-front)
     for (int i = RADIUS - 1; i > 0; i--)
+    {
       // behind[i] = behind[i - 1];
       copyPlane(behind[i], behind[i - 1]);
+    }
 
     // behind[0] = tile;                     // behind[0] = current;
     copyPlane(behind[0], tile);
@@ -308,16 +331,16 @@ __global__ void FiniteDifferencesKernelCube(float *output, const float *input,
     // tile = infront[0];                    // current = infront[0];
     copyPlane(tile, infront[0]);
 
-
     // current = infront[0][RADIUS][RADIUS]; // center of infront[0]
-    
-    // we iterate from behind to infront
+
+    // we iterate from infront to behind
 #pragma unroll 4
 
     for (int i = 0; i < RADIUS - 1; i++)
+    {
       // infront[i] = infront[i + 1];
       copyPlane(infront[i], infront[i + 1]);
-
+    }
 
     // Loading new infront
     if (validr)
@@ -329,14 +352,14 @@ __global__ void FiniteDifferencesKernelCube(float *output, const float *input,
         {
           // should import each plane of infront like tile
 
-          // Halo above & below
+          // above & below
           if (ltidy < RADIUS)
           {
             infront[RADIUS - 1][ltidy][tx] = input[inputIndex - RADIUS * stride_y];
             infront[RADIUS - 1][ltidy + worky + RADIUS][tx] = input[inputIndex + worky * stride_y];
           }
 
-          // Halo left & right
+          // left & right
           if (ltidx < RADIUS)
           {
             infront[RADIUS - 1][ty][ltidx] = input[inputIndex - RADIUS];
@@ -375,10 +398,11 @@ __global__ void FiniteDifferencesKernelCube(float *output, const float *input,
 
 
     tile[ty][tx] = current;
-    */
-    cg::sync(cta);
 
-    float value = 0; // float value = stencil[0] * current;
+    cg::sync(cta);
+    */
+
+    float value = 0;
 #pragma unroll 4
     /*
     for (int i = 1; i <= RADIUS; i++)
@@ -393,6 +417,7 @@ __global__ void FiniteDifferencesKernelCube(float *output, const float *input,
     // Compute the output value of behind
     // Indexes of "behind" are from infront to behind
     // Indexes of "stencil" are from behind to infront
+    // the center in x-y plane is behind[ty][tx]
     for (int idz = 0; idz < RADIUS; ++idz)
     {
       for (int idy = 0; idy <= 2 * RADIUS; ++idy)
@@ -405,7 +430,7 @@ __global__ void FiniteDifferencesKernelCube(float *output, const float *input,
     }
 
     // Compute the output value of tile
-    // idx = RADIUS
+    // the center is tile[ty][tx]
     for (int idy = 0; idy <= 2 * RADIUS; ++idy)
     {
       for (int idx = 0; idx <= 2 * RADIUS; ++idx)
@@ -427,8 +452,9 @@ __global__ void FiniteDifferencesKernelCube(float *output, const float *input,
         }
       }
     }
+
     // Store the output value
-    if (validw)
+    if (validw) // valid white block
       output[outputIndex] = value;
   }
 }

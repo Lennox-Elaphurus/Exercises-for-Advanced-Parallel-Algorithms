@@ -33,6 +33,8 @@
 #include <iomanip>
 #include <stdio.h>
 
+#define DEBUG 1
+
 void generateRandomData(float *data, const int dimx, const int dimy,
                         const int dimz, const float lowerBound,
                         const float upperBound)
@@ -45,9 +47,13 @@ void generateRandomData(float *data, const int dimx, const int dimy,
     {
       for (int ix = 0; ix < dimx; ix++)
       {
+#ifndef DEBUG
         *data = (float)(lowerBound +
                         ((float)rand() / (float)RAND_MAX) *
                             (upperBound - lowerBound));
+#else
+        *data = 1.0f;
+#endif
         ++data;
       }
     }
@@ -74,84 +80,6 @@ void generatePatternData(float *data, const int dimx, const int dimy,
 
 bool fdtdReference(float *output, const float *input, const float *coeff,
                    const int dimx, const int dimy, const int dimz,
-                   const int radius, const int timesteps) {
-  const int outerDimx = dimx + 2 * radius;
-  const int outerDimy = dimy + 2 * radius;
-  const int outerDimz = dimz + 2 * radius;
-  const size_t volumeSize = outerDimx * outerDimy * outerDimz;
-  const int stride_y = outerDimx;
-  const int stride_z = stride_y * outerDimy;
-  float *intermediate = 0;
-  const float *bufsrc = 0;
-  float *bufdst = 0;
-  float *bufdstnext = 0;
-
-  // Allocate temporary buffer
-  printf(" calloc intermediate\n");
-  intermediate = (float *)calloc(volumeSize, sizeof(float));
-
-  // Decide which buffer to use first (result should end up in output)
-  if ((timesteps % 2) == 0) {
-    bufsrc = input;
-    bufdst = intermediate;
-    bufdstnext = output;
-  } else {
-    bufsrc = input;
-    bufdst = output;
-    bufdstnext = intermediate;
-  }
-
-  // Run the FDTD (naive method)
-  printf(" Host FDTD loop\n");
-
-  for (int it = 0; it < timesteps; it++) {
-    printf("\tt = %d\n", it);
-    const float *src = bufsrc;
-    float *dst = bufdst;
-
-    for (int iz = -radius; iz < dimz + radius; iz++) {
-      for (int iy = -radius; iy < dimy + radius; iy++) {
-        for (int ix = -radius; ix < dimx + radius; ix++) {
-          if (ix >= 0 && ix < dimx && iy >= 0 && iy < dimy && iz >= 0 &&
-              iz < dimz) {
-            float value = (*src) * coeff[0];
-
-            for (int ir = 1; ir <= radius; ir++) {
-              value += coeff[ir] * (*(src + ir) + *(src - ir));  // horizontal
-              value += coeff[ir] * (*(src + ir * stride_y) +
-                                    *(src - ir * stride_y));  // vertical
-              value +=
-                  coeff[ir] * (*(src + ir * stride_z) +
-                               *(src - ir * stride_z));  // in front & behind
-            }
-
-            *dst = value;
-          } else {
-            *dst = *src;
-          }
-
-          ++dst;
-          ++src;
-        }
-      }
-    }
-
-    // Rotate buffers
-    float *tmp = bufdst;
-    bufdst = bufdstnext;
-    bufdstnext = tmp;
-    bufsrc = (const float *)tmp;
-  }
-
-  printf("\n");
-
-  if (intermediate) free(intermediate);
-
-  return true;
-}
-
-bool fdtdReferenceCubeKernel(float *output, const float *input, const float *coeff,
-                   const int dimx, const int dimy, const int dimz,
                    const int radius, const int timesteps)
 {
   const int outerDimx = dimx + 2 * radius;
@@ -164,8 +92,6 @@ bool fdtdReferenceCubeKernel(float *output, const float *input, const float *coe
   const float *bufsrc = 0;
   float *bufdst = 0;
   float *bufdstnext = 0;
-  const int kernelDim = 2 * radius + 1;
-  const size_t centerPointIdx = radius + kernelDim * radius + (kernelDim * kernelDim) * radius;
 
   // Allocate temporary buffer
   printf(" calloc intermediate\n");
@@ -203,8 +129,103 @@ bool fdtdReferenceCubeKernel(float *output, const float *input, const float *coe
           if (ix >= 0 && ix < dimx && iy >= 0 && iy < dimy && iz >= 0 &&
               iz < dimz)
           {
+            float value = (*src) * coeff[0];
+
+            for (int ir = 1; ir <= radius; ir++)
+            {
+              value += coeff[ir] * (*(src + ir) + *(src - ir)); // horizontal
+              value += coeff[ir] * (*(src + ir * stride_y) +
+                                    *(src - ir * stride_y)); // vertical
+              value +=
+                  coeff[ir] * (*(src + ir * stride_z) +
+                               *(src - ir * stride_z)); // in front & behind
+            }
+
+            *dst = value;
+          }
+          else
+          {
+            *dst = *src;
+          }
+
+          ++dst;
+          ++src;
+        }
+      }
+    }
+
+    // Rotate buffers
+    float *tmp = bufdst;
+    bufdst = bufdstnext;
+    bufdstnext = tmp;
+    bufsrc = (const float *)tmp;
+  }
+
+  printf("\n");
+
+  if (intermediate)
+    free(intermediate);
+
+  return true;
+}
+
+bool fdtdReferenceCubeKernel(float *output, const float *input, const float *coeff,
+                             const int dimx, const int dimy, const int dimz,
+                             const int radius, const int timesteps)
+{
+  const int outerDimx = dimx + 2 * radius;
+  const int outerDimy = dimy + 2 * radius;
+  const int outerDimz = dimz + 2 * radius;
+  const size_t volumeSize = outerDimx * outerDimy * outerDimz;
+  const int stride_y = outerDimx;
+  const int stride_z = stride_y * outerDimy;
+  float *intermediate = 0;
+  const float *bufsrc = 0;
+  float *bufdst = 0;
+  float *bufdstnext = 0;
+  const int kernelDim = 2 * radius + 1;
+  const int centerPointIdx = radius + stride_y * radius + stride_z * radius;
+
+  // Allocate temporary buffer
+  printf(" calloc intermediate\n");
+  intermediate = (float *)calloc(volumeSize, sizeof(float));
+
+  // Decide which buffer to use first (result should end up in output)
+  if ((timesteps % 2) == 0)
+  {
+    bufsrc = input;
+    bufdst = intermediate;
+    bufdstnext = output;
+  }
+  else
+  {
+    bufsrc = input;
+    bufdst = output;
+    bufdstnext = intermediate;
+  }
+
+  // Run the FDTD (naive method)
+  printf(" Host FDTD loop\n");
+
+
+  const float *coeffData = nullptr;
+  for (int it = 0; it < timesteps; it++)
+  {
+    printf("\tt = %d\n", it);
+    const float *src = bufsrc;
+    float *dst = bufdst;
+
+    for (int iz = -radius; iz < dimz + radius; iz++)
+    {
+      for (int iy = -radius; iy < dimy + radius; iy++)
+      {
+        for (int ix = -radius; ix < dimx + radius; ix++)
+        {
+          if (ix >= 0 && ix < dimx && iy >= 0 && iy < dimy && iz >= 0 &&
+              iz < dimz)
+          {
             // float value = (*src) * coeff[0]; //what are they doing here? Accessing the center of coeff
-            float value = (*src) * coeff[centerPointIdx];
+            float value = 0;
 
             /*
             for (int ir = 1; ir <= radius; ir++) {
@@ -216,18 +237,16 @@ bool fdtdReferenceCubeKernel(float *output, const float *input, const float *coe
                                *(src - ir * stride_z));  // in front & behind
             }
             */
-            const float *srcData = src - centerPointIdx; // point to the start of cube
-            const float *coeffData = coeff;
+            coeffData = coeff;
             for (int coeffIdz = 0; coeffIdz <= 2 * radius; ++coeffIdz)
             {
               for (int coeffIdy = 0; coeffIdy <= 2 * radius; ++coeffIdy)
               {
                 for (int coeffIdx = 0; coeffIdx <= 2 * radius; ++coeffIdx)
                 {
-                  value += (*coeffData) * (*srcData);
+                  value += (*coeffData) * (*(src-centerPointIdx+ coeffIdx + stride_y * coeffIdy + stride_z * coeffIdz));
 
-                  coeffData++;
-                  srcData++;
+                  ++coeffData;
                 }
               }
             }

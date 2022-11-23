@@ -43,7 +43,6 @@
 #endif
 
 #define GPU_PROFILING 1
-
 //// Name of the log file
 // const char *printfFile = "FDTD3d.txt";
 
