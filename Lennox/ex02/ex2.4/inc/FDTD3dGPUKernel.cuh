@@ -29,7 +29,7 @@
 #include <cooperative_groups.h>
 
 namespace cg = cooperative_groups;
-
+#define SEQ_INDEX(z, y, x) ((x) + (y)*stride_y + (z)*stride_z)
 // Note: If you change the RADIUS, you should also change the unrolling below
 #define RADIUS 4
 // __constant__ float stencil[RADIUS + 1];//original linear stencil
@@ -218,12 +218,12 @@ __global__ void FiniteDifferencesKernelCube(float *output, const float *input,
   int inputIndex = 0;
   int outputIndex = 0;
 
-  // Advance inputIndex to start of inner volume
-  inputIndex += RADIUS * stride_y + RADIUS;
+  // Advance inputIndex to start of inner volume(i.e the white block)
+  inputIndex += RADIUS * stride_y + RADIUS; // to the start of white block, step through z-axis later
 
   // Advance inputIndex to target element
-  inputIndex += gtidy * stride_y + gtidx;
-  const int startIndex = inputIndex; // the index of center element of x-y plane, but with idz=0
+  inputIndex += gtidy * stride_y + gtidx; // to the center of the block of this thread
+  const int startIndex = inputIndex;      // the index of center element of x-y plane, but with idz=0
 
   __shared__ float cube_data[2 * RADIUS + 1][k_blockDimMaxY + 2 * RADIUS][k_blockDimX + 2 * RADIUS]; // changed to full plane sglobal_ze
   // float current;
@@ -233,10 +233,10 @@ __global__ void FiniteDifferencesKernelCube(float *output, const float *input,
 
   // Check in bounds
   if ((gtidx >= dimx + RADIUS) || (gtidy >= dimy + RADIUS))
-    validr = false; // in the whole block with halo
+    validr = false; // in the whole white block with halo
 
   if ((gtidx >= dimx) || (gtidy >= dimy))
-    validw = false; // in the whole block
+    validw = false; // in the whole white block
 
   // Preload the small cube data
   // "input" start with infront, we iterate from infront to behind (z)
@@ -245,7 +245,7 @@ __global__ void FiniteDifferencesKernelCube(float *output, const float *input,
   // Loading the first cube data
   for (int global_z = 0; global_z <= 2 * RADIUS; ++global_z)
   {
-    cube_data[global_z][ltidy][ltidx] = input[gtidx + gtidy * stride_y + global_z * stride_z]; // accessing [global_z][gtidy][gtidx]
+    cube_data[global_z][ltidy][ltidx] = input[SEQ_INDEX(global_z, gtidy, gtidx)]; // accessing [global_z][gtidy][gtidx]
   }
   cg::sync(cta);
 
@@ -255,18 +255,9 @@ __global__ void FiniteDifferencesKernelCube(float *output, const float *input,
 
 #pragma unroll 9
   // we iterate from infront to behind
-  outputIndex = startIndex + (RADIUS - 1) * stride_z;
-  for (int global_z = 0; global_z < dimz; global_z++)
+  outputIndex = startIndex;
+  for (int global_z = 0; global_z < dimz; ++global_z)
   {
-
-    // Advance the slice (move the thread-front)
-    for (int idz = 1; idz <= 2 * RADIUS; ++idz)
-    {
-      data_cube[idz][ltidy][ltidx] = data_cube[idz - 1][ltidy][ltidx];
-    }
-
-    outputIndex += stride_z;
-    cg::sync(cta);
 
     // Compute the output value of data_cube
     // the center is data_cube[RADIUS][ty][tx], the start of cube is data_cube[0][ltidy][ltidx]
@@ -285,7 +276,24 @@ __global__ void FiniteDifferencesKernelCube(float *output, const float *input,
     }
 
     // Store the output value, filter the result
-    if (validw) // valid white block
+    if (validw)
+    { // valid white block
       output[outputIndex] = value;
+    }
+
+    // Advance the slice
+    for (int idz = 0; idz < 2 * RADIUS; ++idz)
+    {
+      data_cube[idz][ltidy][ltidx] = data_cube[idz + 1][ltidy][ltidx];
+    }
+
+    // Load new data
+    if (global_z < dimz - 1) // if still in the whole white block and halo
+    {
+      data_cube[2 * RADIUS][ltidy][ltidx] = input[SEQ_INDEX(global_z + 2 * RADIUS + 1, gtdy, gtdx)]; // the index of input[] is still wrong
+    }
+    outputIndex += stride_z;
+
+    cg::sync(cta);
   }
 }
