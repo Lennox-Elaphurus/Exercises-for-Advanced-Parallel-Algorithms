@@ -258,94 +258,22 @@ __global__ void FiniteDifferencesKernelCube(float *output, const float *input,
   // we iterate from infront to behind
   for (int global_z = 0; global_z < dimz; global_z++)
   {
+
     // Advance the slice (move the thread-front)
     for (int idz = 1; idz <= 2 * RADIUS; ++idz)
     {
-      data_cube[idz][ltidy][ltidx] = data_cube[idz - 1][ltidy][ltidz];
+      data_cube[idz][ltidy][ltidx] = data_cube[idz - 1][ltidy][ltidx];
     }
     cg::sync(cta);
 
-
-    // Note that for the work items on the boundary of the problem, the
-    // supplied index when reading the halo (below) may wrap to the
-    // previous/next row or even the previous/next xy-plane. This is
-    // acceptable since a) we disable the output write for these work
-    // items and b) there is at least one xy-plane before/after the
-    // current plane, so the access will be within bounds.
-
-    /* No use any more because tile now loaded from infront
-    // Update the data slice in the local tile
-    // Halo above & below
-    if (ltidy < RADIUS)
-    {
-      tile[ltidy][tx] = input[outputIndex - RADIUS * stride_y];
-      tile[ltidy + worky + RADIUS][tx] = input[outputIndex + worky * stride_y];
-    }
-
-    // Halo left & right
-    if (ltidx < RADIUS)
-    {
-      tile[ty][ltidx] = input[outputIndex - RADIUS];
-      tile[ty][ltidx + workx + RADIUS] = input[outputIndex + workx];
-    }
-
-
-    tile[ty][tx] = current;
-
-    cg::sync(cta);
-    */
-
-    float value = 0;
-#pragma unroll 4
-    /*
-    for (int i = 1; i <= RADIUS; i++)
-    {
-      value +=
-          stencil[i] * (infront[i - 1] + behind[i - 1] + tile[ty - i][tx] +
-                        tile[ty + i][tx] + tile[ty][tx - i] + tile[ty][tx + i]);
-      //center of tile is tile[ty][tx]
-    }
-    */
-
-    // Compute the output value of behind
-    // Indexes of "behind" are from infront to behind
-    // Indexes of "stencil" are from behind to infront
-    // the center in x-y plane is behind[ty][tx]
-
-    for (int idz = 0; idz < RADIUS; ++idz)
-    {
-      for (int idy = 0; idy <= 2 * RADIUS; ++idy)
-      {
-        for (int idx = 0; idx <= 2 * RADIUS; ++idx)
-        {
-          value += stencil[idz][idy][idx] * behind[RADIUS - 1 - idz][ltidy + idy][ltidx + idx]; // I should use the whole cube instead of using infront , behind and tile.
-        }
-      }
-    }
-
-    // Compute the output value of tile
+    // Compute the output value of data_cube
     // the center is tile[ty][tx]
-    for (int idy = 0; idy <= 2 * RADIUS; ++idy)
+    float value = 0;
+    for (int idz = 0; idz <= 2 * RADIUS; ++idz)
     {
-      for (int idx = 0; idx <= 2 * RADIUS; ++idx)
-      {
-        value += stencil[RADIUS][idy][idx] * tile[ltidy + idy][ltidx + idx];
-      }
-    } // Finish computing the output value of tile
+      value += stencil[idz][ltidy][ltidx] * data_cube[idz][ltidy][ltidx];
 
-    // Compute the output value of infront
-    // Indexes of "infront" are from behind to infront
-    // Indexes of "stencil" are from behind to infront
-    for (int idz = RADIUS + 1; idz <= 2 * RADIUS; ++idz)
-    {
-      for (int idy = 0; idy <= 2 * RADIUS; ++idy)
-      {
-        for (int idx = 0; idx <= 2 * RADIUS; ++idx)
-        {
-          value += stencil[idz][idy][idx] * infront[idz - RADIUS - 1][ltidy + idy][ltidx + idx]; // I should use the whole cube instead of using infront , behind and tile.
-        }
-      }
-    }
+    } // Finish computing the output value of tile
 
     // Store the output value
     if (validw) // valid white block
