@@ -220,11 +220,10 @@ __global__ void FiniteDifferencesKernelCube(float *output, const float *input,
 
   // Advance inputIndex to start of inner volume
   inputIndex += RADIUS * stride_y + RADIUS;
-  const int startIndex = inputIndex; // the start of block of this thread
 
   // Advance inputIndex to target element
   inputIndex += gtidy * stride_y + gtidx;
-  const int centerIndex = inputIndex; // the index of center element of thins thread
+  const int startIndex = inputIndex; // the index of center element of x-y plane, but with idz=0
 
   __shared__ float cube_data[2 * RADIUS + 1][k_blockDimMaxY + 2 * RADIUS][k_blockDimX + 2 * RADIUS]; // changed to full plane sglobal_ze
   // float current;
@@ -246,7 +245,7 @@ __global__ void FiniteDifferencesKernelCube(float *output, const float *input,
   // Loading the first cube data
   for (int global_z = 0; global_z <= 2 * RADIUS; ++global_z)
   {
-    cube_data[global_z][ltidy][ltidx] = input[gtidx + gtidy * stride_y + global_z * stride_z];
+    cube_data[global_z][ltidy][ltidx] = input[gtidx + gtidy * stride_y + global_z * stride_z]; // accessing [global_z][gtidy][gtidx]
   }
   cg::sync(cta);
 
@@ -256,6 +255,7 @@ __global__ void FiniteDifferencesKernelCube(float *output, const float *input,
 
 #pragma unroll 9
   // we iterate from infront to behind
+  outputIndex = startIndex + (RADIUS - 1) * stride_z;
   for (int global_z = 0; global_z < dimz; global_z++)
   {
 
@@ -264,18 +264,27 @@ __global__ void FiniteDifferencesKernelCube(float *output, const float *input,
     {
       data_cube[idz][ltidy][ltidx] = data_cube[idz - 1][ltidy][ltidx];
     }
+
+    outputIndex += stride_z;
     cg::sync(cta);
 
     // Compute the output value of data_cube
-    // the center is tile[ty][tx]
+    // the center is data_cube[RADIUS][ty][tx], the start of cube is data_cube[0][ltidy][ltidx]
+    // Each thread calculate one whole cube
+    // All thread in one block calculate all cubes with center in one same x-y plane
     float value = 0;
     for (int idz = 0; idz <= 2 * RADIUS; ++idz)
     {
-      value += stencil[idz][ltidy][ltidx] * data_cube[idz][ltidy][ltidx];
+      for (int idy = 0; idy <= 2 * RADIUS; ++idy)
+      {
+        for (int idx = 0; idx <= 2 * RADIUS; ++idx)
+        {
+          value += stencil[idz][idy][idx] * data_cube[idz][ltidy + idy][ltidx + idx];
+        } // Finish computing the output value of tile
+      }
+    }
 
-    } // Finish computing the output value of tile
-
-    // Store the output value
+    // Store the output value, filter the result
     if (validw) // valid white block
       output[outputIndex] = value;
   }
