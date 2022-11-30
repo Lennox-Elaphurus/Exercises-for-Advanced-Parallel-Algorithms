@@ -1,0 +1,392 @@
+threadFenceReduction Starting...
+
+GPU Device 0: "Turing" with compute capability 7.5
+
+GPU Device supports SM 7.5 compute capability
+
+4 elements
+128 threads (max)
+1 blocks
+Average time: 0.007420 ms
+Bandwidth:    0.002156 GB/s
+
+GPU result = 0.000000242610
+CPU result = 0.000000242610
+threadFenceReduction Starting...
+
+GPU Device 0: "Turing" with compute capability 7.5
+
+GPU Device supports SM 7.5 compute capability
+
+8 elements
+128 threads (max)
+1 blocks
+Average time: 0.007290 ms
+Bandwidth:    0.004390 GB/s
+
+GPU result = 0.000000543427
+CPU result = 0.000000543427
+threadFenceReduction Starting...
+
+GPU Device 0: "Turing" with compute capability 7.5
+
+GPU Device supports SM 7.5 compute capability
+
+16 elements
+128 threads (max)
+1 blocks
+Average time: 0.007390 ms
+Bandwidth:    0.008660 GB/s
+
+GPU result = 0.000001192093
+CPU result = 0.000001192093
+threadFenceReduction Starting...
+
+GPU Device 0: "Turing" with compute capability 7.5
+
+GPU Device supports SM 7.5 compute capability
+
+32 elements
+128 threads (max)
+1 blocks
+Average time: 0.007300 ms
+Bandwidth:    0.017534 GB/s
+
+GPU result = 0.000002216082
+CPU result = 0.000002216082
+threadFenceReduction Starting...
+
+GPU Device 0: "Turing" with compute capability 7.5
+
+GPU Device supports SM 7.5 compute capability
+
+64 elements
+128 threads (max)
+1 blocks
+Average time: 0.007490 ms
+Bandwidth:    0.034179 GB/s
+
+GPU result = 0.000003838912
+CPU result = 0.000003838912
+threadFenceReduction Starting...
+
+GPU Device 0: "Turing" with compute capability 7.5
+
+GPU Device supports SM 7.5 compute capability
+
+128 elements
+128 threads (max)
+1 blocks
+Average time: 0.008680 ms
+Bandwidth:    0.058986 GB/s
+
+GPU result = 0.000008033123
+CPU result = 0.000008033123
+threadFenceReduction Starting...
+
+GPU Device 0: "Turing" with compute capability 7.5
+
+GPU Device supports SM 7.5 compute capability
+
+256 elements
+128 threads (max)
+1 blocks
+Average time: 0.007680 ms
+Bandwidth:    0.133333 GB/s
+
+GPU result = 0.000015112571
+CPU result = 0.000015112571
+threadFenceReduction Starting...
+
+GPU Device 0: "Turing" with compute capability 7.5
+
+GPU Device supports SM 7.5 compute capability
+
+512 elements
+128 threads (max)
+2 blocks
+Average time: 0.008920 ms
+Bandwidth:    0.229596 GB/s
+
+GPU result = 0.000030864961
+CPU result = 0.000030864961
+threadFenceReduction Starting...
+
+GPU Device 0: "Turing" with compute capability 7.5
+
+GPU Device supports SM 7.5 compute capability
+
+1024 elements
+128 threads (max)
+4 blocks
+Average time: 0.008950 ms
+Bandwidth:    0.457653 GB/s
+
+GPU result = 0.000061169732
+CPU result = 0.000061169732
+threadFenceReduction Starting...
+
+GPU Device 0: "Turing" with compute capability 7.5
+
+GPU Device supports SM 7.5 compute capability
+
+2048 elements
+128 threads (max)
+4 blocks
+Average time: 0.010110 ms
+Bandwidth:    0.810287 GB/s
+
+GPU result = 0.000122981146
+CPU result = 0.000122981146
+threadFenceReduction Starting...
+
+GPU Device 0: "Turing" with compute capability 7.5
+
+GPU Device supports SM 7.5 compute capability
+
+4096 elements
+128 threads (max)
+4 blocks
+Average time: 0.010230 ms
+Bandwidth:    1.601565 GB/s
+
+GPU result = 0.000240812078
+CPU result = 0.000240812078
+threadFenceReduction Starting...
+
+GPU Device 0: "Turing" with compute capability 7.5
+
+GPU Device supports SM 7.5 compute capability
+
+8192 elements
+128 threads (max)
+4 blocks
+Average time: 0.010340 ms
+Bandwidth:    3.169054 GB/s
+
+GPU result = 0.000484128017
+CPU result = 0.000484128017
+threadFenceReduction Starting...
+
+GPU Device 0: "Turing" with compute capability 7.5
+
+GPU Device supports SM 7.5 compute capability
+
+16384 elements
+128 threads (max)
+4 blocks
+Average time: 0.013040 ms
+Bandwidth:    5.025763 GB/s
+
+GPU result = 0.000972796697
+CPU result = 0.000972796697
+threadFenceReduction Starting...
+
+GPU Device 0: "Turing" with compute capability 7.5
+
+GPU Device supports SM 7.5 compute capability
+
+32768 elements
+128 threads (max)
+4 blocks
+Average time: 0.015970 ms
+Bandwidth:    8.207389 GB/s
+
+GPU result = 0.001948060468
+CPU result = 0.001948060468
+threadFenceReduction Starting...
+
+GPU Device 0: "Turing" with compute capability 7.5
+
+GPU Device supports SM 7.5 compute capability
+
+65536 elements
+128 threads (max)
+4 blocks
+Average time: 0.021910 ms
+Bandwidth:    11.964584 GB/s
+
+GPU result = 0.003899649251
+CPU result = 0.003899649251
+threadFenceReduction Starting...
+
+GPU Device 0: "Turing" with compute capability 7.5
+
+GPU Device supports SM 7.5 compute capability
+
+131072 elements
+128 threads (max)
+4 blocks
+Average time: 0.034730 ms
+Bandwidth:    15.096107 GB/s
+
+GPU result = 0.007798646111
+CPU result = 0.007798646111
+threadFenceReduction Starting...
+
+GPU Device 0: "Turing" with compute capability 7.5
+
+GPU Device supports SM 7.5 compute capability
+
+262144 elements
+128 threads (max)
+4 blocks
+Average time: 0.063150 ms
+Bandwidth:    16.604538 GB/s
+
+GPU result = 0.015570901334
+CPU result = 0.015570901334
+threadFenceReduction Starting...
+
+GPU Device 0: "Turing" with compute capability 7.5
+
+GPU Device supports SM 7.5 compute capability
+
+524288 elements
+128 threads (max)
+4 blocks
+Average time: 0.112400 ms
+Bandwidth:    18.657926 GB/s
+
+GPU result = 0.031131766737
+CPU result = 0.031131764874
+threadFenceReduction Starting...
+
+GPU Device 0: "Turing" with compute capability 7.5
+
+GPU Device supports SM 7.5 compute capability
+
+1048576 elements
+128 threads (max)
+4 blocks
+Average time: 0.215210 ms
+Bandwidth:    19.489350 GB/s
+
+GPU result = 0.062298238277
+CPU result = 0.062298242003
+threadFenceReduction Starting...
+
+GPU Device 0: "Turing" with compute capability 7.5
+
+GPU Device supports SM 7.5 compute capability
+
+2097152 elements
+128 threads (max)
+4 blocks
+Average time: 0.707910 ms
+Bandwidth:    11.849820 GB/s
+
+GPU result = 0.124525412917
+CPU result = 0.124525412917
+threadFenceReduction Starting...
+
+GPU Device 0: "Turing" with compute capability 7.5
+
+GPU Device supports SM 7.5 compute capability
+
+4194304 elements
+128 threads (max)
+4 blocks
+Average time: 1.404160 ms
+Bandwidth:    11.948226 GB/s
+
+GPU result = 0.249085664749
+CPU result = 0.249085679650
+threadFenceReduction Starting...
+
+GPU Device 0: "Turing" with compute capability 7.5
+
+GPU Device supports SM 7.5 compute capability
+
+8388608 elements
+128 threads (max)
+4 blocks
+Average time: 2.283370 ms
+Bandwidth:    14.695134 GB/s
+
+GPU result = 0.498076021671
+CPU result = 0.498076051474
+threadFenceReduction Starting...
+
+GPU Device 0: "Turing" with compute capability 7.5
+
+GPU Device supports SM 7.5 compute capability
+
+16777216 elements
+128 threads (max)
+4 blocks
+Average time: 4.559641 ms
+Bandwidth:    14.718015 GB/s
+
+GPU result = 0.996214091778
+CPU result = 0.996214091778
+threadFenceReduction Starting...
+
+GPU Device 0: "Turing" with compute capability 7.5
+
+GPU Device supports SM 7.5 compute capability
+
+33554432 elements
+128 threads (max)
+4 blocks
+Average time: 9.112649 ms
+Bandwidth:    14.728728 GB/s
+
+GPU result = 1.992401361465
+CPU result = 1.992401361465
+threadFenceReduction Starting...
+
+GPU Device 0: "Turing" with compute capability 7.5
+
+GPU Device supports SM 7.5 compute capability
+
+67108864 elements
+128 threads (max)
+4 blocks
+Average time: 18.445869 ms
+Bandwidth:    14.552605 GB/s
+
+GPU result = 3.984671115875
+CPU result = 3.984671115875
+threadFenceReduction Starting...
+
+GPU Device 0: "Turing" with compute capability 7.5
+
+GPU Device supports SM 7.5 compute capability
+
+134217728 elements
+128 threads (max)
+4 blocks
+Average time: 36.584824 ms
+Bandwidth:    14.674689 GB/s
+
+GPU result = 7.969150543213
+CPU result = 7.969150543213
+threadFenceReduction Starting...
+
+GPU Device 0: "Turing" with compute capability 7.5
+
+GPU Device supports SM 7.5 compute capability
+
+268435456 elements
+128 threads (max)
+4 blocks
+Average time: 72.957932 ms
+Bandwidth:    14.717273 GB/s
+
+GPU result = 15.938024520874
+CPU result = 15.938027381897
+threadFenceReduction Starting...
+
+GPU Device 0: "Turing" with compute capability 7.5
+
+GPU Device supports SM 7.5 compute capability
+
+536870912 elements
+128 threads (max)
+4 blocks
+Average time: 145.690247 ms
+Bandwidth:    14.740065 GB/s
+
+GPU result = 31.875221252441
+CPU result = 31.875230789185
