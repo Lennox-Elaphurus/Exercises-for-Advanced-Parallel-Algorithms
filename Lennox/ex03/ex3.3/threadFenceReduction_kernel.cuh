@@ -89,7 +89,7 @@ __device__ void reduceBlock(volatile float *sdata, float mySum,
   cg::sync(cta);
 }
 
-/* don't need to change reduceBlock
+/*
 __device__ void reduceBlockGridSync(volatile float *sdata, float mySum,
                             const unsigned int tid, cg::grid_group grid)
 {
@@ -113,7 +113,7 @@ __device__ void reduceBlockGridSync(volatile float *sdata, float mySum,
     }
     cg::sync(tile32);
   }
-  cg::sync(cta);
+  grid.sync();
 
   if (cta.thread_rank() == 0)
   {
@@ -124,7 +124,7 @@ __device__ void reduceBlockGridSync(volatile float *sdata, float mySum,
     }
     sdata[0] = beta;
   }
-  cg::sync(cta);
+  grid.sync();
 }
 */
 
@@ -319,10 +319,10 @@ __global__ void reduceSinglePassGridSync(const float *g_idata, float *g_odata,
   // PHASE 1: Process all inputs assigned to this block
   //
 
-  float grid_array[blockSize];
+  __shared__ float grid_array[blockSize];
   // reduceBlocks<blockSize, nIsPow2>(g_idata, g_odata, n, cta);
   reduceBlocksGridSync<blockSize, nIsPow2>(g_idata, g_odata, n, cta, (float *)&grid_array);
-  cg::sync(grid);
+  grid.sync();
 
   //
   // PHASE 2: Last block finished will process all partial sums
@@ -347,7 +347,7 @@ __global__ void reduceSinglePassGridSync(const float *g_idata, float *g_odata,
       amLast = (ticket == gridDim.x - 1);
     }
 
-    cg::sync(grid); // or  cg::sync(cta);?
+    grid.sync(); // or  cg::sync(cta);?
 
     // The last block sums the results of all other blocks
     if (amLast)
@@ -357,7 +357,7 @@ __global__ void reduceSinglePassGridSync(const float *g_idata, float *g_odata,
 
       while (i < gridDim.x)
       {
-        mySum += g_odata[i];
+        mySum += grid_array[i];// mySum += g_odata[i];
         i += blockSize;
       }
 
@@ -623,11 +623,15 @@ extern "C" void reduceSinglePass(int size, int threads, int blocks,
 extern "C" void reduceSinglePassGridSync(int size, int threads, int blocks,
                                          float *d_idata, float *d_odata)
 {
-  std::cout<<"In reduceSinglePassGridSync() extern 'C'"<<std::endl;
+  std::cout << "In reduceSinglePassGridSync() extern 'C'" << std::endl;
   // dim3 dimBlock(threads, 1, 1);
   // dim3 dimGrid(blocks, 1, 1);
   int smemSize = 0;
-  
+  int* size_device =nullptr;
+  checkCudaErrors(cudaMalloc((void **)&size_device, sizeof(int)));
+  checkCudaErrors(
+        cudaMemcpy(size_device, &size, sizeof(int), cudaMemcpyHostToDevice));
+
   // source: https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#grid-synchronization-cg
 
   // It is good practice to first ensure the device supports cooperative launches by querying the device attribute cudaDevAttrCooperativeLaunch:
@@ -645,7 +649,7 @@ extern "C" void reduceSinglePassGridSync(int size, int threads, int blocks,
   // error: argument types are: (int *, <unknown-type>, int, int), the compiler can't solve the function template
 
   // launch
-  void *args[] = {d_idata, d_odata, &size};
+  void *args[] = {d_idata, d_odata, size_device};
   dim3 dimBlock(numThreads, 1, 1);
   // dim3 dimGrid(deviceProp.multiProcessorCount * numBlocksPerSm, 1, 1);
   dim3 dimGrid(1, 1, 1);
@@ -654,7 +658,8 @@ extern "C" void reduceSinglePassGridSync(int size, int threads, int blocks,
   // can't use template function as func or will get error
   // error: cannot determine which instance of overloaded function "reduceSinglePassGridSync" is intended
 
-  std::cout<<"In reduceSinglePassGridSync() extern 'C' before switch"<<std::endl;
+  std::cout << "In reduceSinglePassGridSync() extern 'C' before switch" << std::endl;
+  cudaError_t err = cudaSuccess;
   // choose which of the optimized versions of reduction to launch
   if (isPow2(size))
   {
@@ -673,21 +678,30 @@ extern "C" void reduceSinglePassGridSync(int size, int threads, int blocks,
       cudaOccupancyMaxActiveBlocksPerMultiprocessor(&numBlocksPerSm, reduceSinglePassGridSync<256, true>, numThreads, 0);
       dimGrid.x = deviceProp.multiProcessorCount * numBlocksPerSm;
       smemSize = (dimGrid.x <= 32) ? 2 * dimGrid.x * sizeof(float) : dimGrid.x * sizeof(float);
-      
+
       cudaLaunchCooperativeKernel((void *)reduceSinglePassGridSync<256, true>, dimGrid, dimBlock, args, smemSize);
       break;
 
     case 128:
-      
-      cudaOccupancyMaxActiveBlocksPerMultiprocessor(&numBlocksPerSm, reduceSinglePassGridSync<128, true>, numThreads, 0);
-      std::cout<<"after cudaOccupancyMaxActiveBlocksPerMultiprocessor"<<std::endl;
-      dimGrid.x =deviceProp.multiProcessorCount * numBlocksPerSm;
-      smemSize = (dimGrid.x <= 32) ? 2 * dimGrid.x * sizeof(float) : dimGrid.x * sizeof(float);
-      std::cout<<"before cudaLaunchCooperativeKernel"<<std::endl;
 
-      cudaLaunchCooperativeKernel((void *)reduceSinglePassGridSync<128, true>, dimGrid, dimBlock, args, smemSize);
-      
-      std::cout<<"after cudaLaunchCooperativeKernel"<<std::endl;
+      cudaOccupancyMaxActiveBlocksPerMultiprocessor(&numBlocksPerSm, reduceSinglePassGridSync<128, true>, numThreads, 0);
+      std::cout << "after cudaOccupancyMaxActiveBlocksPerMultiprocessor" << std::endl;
+      dimGrid.x = deviceProp.multiProcessorCount * numBlocksPerSm;
+      smemSize = (dimGrid.x <= 32) ? 2 * dimGrid.x * sizeof(float) : dimGrid.x * sizeof(float);
+      std::cout << "before cudaLaunchCooperativeKernel" << std::endl;
+
+      err = cudaLaunchCooperativeKernel((void *)reduceSinglePassGridSync<128, true>, dimGrid, dimBlock, args, smemSize);
+
+      // err = cudaGetLastError();
+      std::cout << err;
+      if (err != cudaSuccess)
+      {
+        fprintf(stderr, "Failed to launch cudaLaunchCooperativeKernel (error code %s)!\n",
+                cudaGetErrorString(err));
+        exit(EXIT_FAILURE);
+      }
+
+      std::cout << "after cudaLaunchCooperativeKernel" << std::endl;
       break;
 
     case 64:
@@ -833,9 +847,9 @@ extern "C" void reduceSinglePassGridSync(int size, int threads, int blocks,
     }
   }
 
-  std::cout<<"In reduceSinglePassGridSync() extern 'C' after calling cudaLaunchCooperativeKernel"<<std::endl;
+  std::cout << "In reduceSinglePassGridSync() extern 'C' after calling cudaLaunchCooperativeKernel" << std::endl;
   // Error code to check return values for CUDA calls
-  cudaError_t err = cudaSuccess;
+  err = cudaSuccess;
 
   err = cudaGetLastError();
   if (err != cudaSuccess)
