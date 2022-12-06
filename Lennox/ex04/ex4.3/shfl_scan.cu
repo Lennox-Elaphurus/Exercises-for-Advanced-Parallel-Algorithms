@@ -323,7 +323,7 @@ bool shuffle_simple_test(int argc, char **argv)
 {
   int *h_data, *h_partial_sums, *h_result;
   int *d_data, *d_partial_sums;
-  const int n_elements = 512; // 65536
+  const int n_elements = 65536; // 65536
   int sz = sizeof(int) * n_elements;
   int cuda_device = 0;
 
@@ -407,7 +407,6 @@ bool shuffle_simple_test(int argc, char **argv)
   shfl_scan_test_transpose<<<p_gridSize, p_blockSize, shmem_sz + n_partialSums * sizeof(int)>>>(d_partial_sums, 32, n_partialSums);
   CHECK_LAUNCH_ERROR();
 
-  // uniform_add<<<gridSize - 1, blockSize>>>(d_data + blockSize, d_partial_sums, n_elements);
   uniform_add<<<gridSize - 1, blockSize>>>(d_data + blockSize, d_partial_sums, n_elements);
   CHECK_LAUNCH_ERROR();
 
