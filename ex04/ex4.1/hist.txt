@@ -1,0 +1,3 @@
+srun: error: mp-skl2s8c: task 0: Exited with exit code 1
+srun: error: mp-skl2s8c: task 0: Exited with exit code 1
+srun: error: mp-skl2s8c: task 0: Exited with exit code 1

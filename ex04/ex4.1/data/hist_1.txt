@@ -1,0 +1,152 @@
+[[histogram]] - Starting...
+GPU Device 0: "Turing" with compute capability 7.5
+
+CUDA device [NVIDIA GeForce RTX 2080 Ti] has 68 Multi-Processors, Compute 7.5
+Initializing data...
+...allocating CPU memory.
+...generating input data
+...allocating GPU memory and copying input data
+
+Initializing Custom-bin histogram...
+Running Custom-bin GPU histogram for 67108864 bytes (16 runs)...
+
+histogramCustom() time (average) : 0.00016 sec, 421405.7233 MB/sec
+
+histogramCustom, wc = 1, binNum = 256, Throughput = 421405.7233 MB/s, Time = 0.00016 s, Size = 67108864 Bytes, NumDevsUsed = 1, Workgroup = 256
+
+Validating GPU results...
+ ...reading back GPU results
+ ...histogramCustomCPU()
+ ...comparing the results
+ ...Custom-bin histograms match
+
+Shutting down Custom-bin histogram...
+
+
+Shutting down...
+
+NOTE: The CUDA Samples are not meant for performance measurements. Results may vary when GPU Boost is enabled.
+
+[histogram] - Test Summary
+Test passed
+[[histogram]] - Starting...
+GPU Device 0: "Turing" with compute capability 7.5
+
+CUDA device [NVIDIA GeForce RTX 2080 Ti] has 68 Multi-Processors, Compute 7.5
+Initializing data...
+...allocating CPU memory.
+...generating input data
+...allocating GPU memory and copying input data
+
+Initializing Custom-bin histogram...
+Running Custom-bin GPU histogram for 67108864 bytes (16 runs)...
+
+histogramCustom() time (average) : 0.00016 sec, 409825.1416 MB/sec
+
+histogramCustom, wc = 1, binNum = 512, Throughput = 409825.1416 MB/s, Time = 0.00016 s, Size = 67108864 Bytes, NumDevsUsed = 1, Workgroup = 256
+
+Validating GPU results...
+ ...reading back GPU results
+ ...histogramCustomCPU()
+ ...comparing the results
+ ...Custom-bin histograms match
+
+Shutting down Custom-bin histogram...
+
+
+Shutting down...
+
+NOTE: The CUDA Samples are not meant for performance measurements. Results may vary when GPU Boost is enabled.
+
+[histogram] - Test Summary
+Test passed
+[[histogram]] - Starting...
+GPU Device 0: "Turing" with compute capability 7.5
+
+CUDA device [NVIDIA GeForce RTX 2080 Ti] has 68 Multi-Processors, Compute 7.5
+Initializing data...
+...allocating CPU memory.
+...generating input data
+...allocating GPU memory and copying input data
+
+Initializing Custom-bin histogram...
+Running Custom-bin GPU histogram for 67108864 bytes (16 runs)...
+
+histogramCustom() time (average) : 0.00026 sec, 258359.4294 MB/sec
+
+histogramCustom, wc = 1, binNum = 1024, Throughput = 258359.4294 MB/s, Time = 0.00026 s, Size = 67108864 Bytes, NumDevsUsed = 1, Workgroup = 256
+
+Validating GPU results...
+ ...reading back GPU results
+ ...histogramCustomCPU()
+ ...comparing the results
+ ...Custom-bin histograms match
+
+Shutting down Custom-bin histogram...
+
+
+Shutting down...
+
+NOTE: The CUDA Samples are not meant for performance measurements. Results may vary when GPU Boost is enabled.
+
+[histogram] - Test Summary
+Test passed
+[[histogram]] - Starting...
+GPU Device 0: "Turing" with compute capability 7.5
+
+CUDA device [NVIDIA GeForce RTX 2080 Ti] has 68 Multi-Processors, Compute 7.5
+Initializing data...
+...allocating CPU memory.
+...generating input data
+...allocating GPU memory and copying input data
+
+Initializing Custom-bin histogram...
+Running Custom-bin GPU histogram for 67108864 bytes (16 runs)...
+
+histogramCustom() time (average) : 0.00047 sec, 142860.8107 MB/sec
+
+histogramCustom, wc = 1, binNum = 2048, Throughput = 142860.8107 MB/s, Time = 0.00047 s, Size = 67108864 Bytes, NumDevsUsed = 1, Workgroup = 256
+
+Validating GPU results...
+ ...reading back GPU results
+ ...histogramCustomCPU()
+ ...comparing the results
+ ...Custom-bin histograms match
+
+Shutting down Custom-bin histogram...
+
+
+Shutting down...
+
+NOTE: The CUDA Samples are not meant for performance measurements. Results may vary when GPU Boost is enabled.
+
+[histogram] - Test Summary
+Test passed
+histogramCustom.cu(168) : getLastCudaError() CUDA error : histogramCustomKernel() execution failed
+ : (1) invalid argument.
+[[histogram]] - Starting...
+GPU Device 0: "Turing" with compute capability 7.5
+
+CUDA device [NVIDIA GeForce RTX 2080 Ti] has 68 Multi-Processors, Compute 7.5
+Initializing data...
+...allocating CPU memory.
+...generating input data
+...allocating GPU memory and copying input data
+
+Initializing Custom-bin histogram...
+Running Custom-bin GPU histogram for 67108864 bytes (16 runs)...
+
+histogramCustom.cu(168) : getLastCudaError() CUDA error : histogramCustomKernel() execution failed
+ : (1) invalid argument.
+[[histogram]] - Starting...
+GPU Device 0: "Turing" with compute capability 7.5
+
+CUDA device [NVIDIA GeForce RTX 2080 Ti] has 68 Multi-Processors, Compute 7.5
+Initializing data...
+...allocating CPU memory.
+...generating input data
+...allocating GPU memory and copying input data
+
+Initializing Custom-bin histogram...
+Running Custom-bin GPU histogram for 67108864 bytes (16 runs)...
+
